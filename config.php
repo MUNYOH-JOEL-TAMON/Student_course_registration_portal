@@ -1,5 +1,5 @@
 <?php
-// config.php - PDO Version
+// config.php - PDO Database Connection
 $host = 'localhost';
 $username = 'root'; 
 $password = '';  // BLANK
