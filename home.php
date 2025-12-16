@@ -1,31 +1,27 @@
 <?php
 session_start();
-require_once 'config.php'; // Include database configuration
+require_once 'config.php'; // Include PDO database configuration
 
 // Check if student is registered
 if (!isset($_SESSION['student'])) {
-    header('Location: index.php');
+    header('Location: login.php'); // Changed to login.php for better flow
     exit();
 }
 
 $student = $_SESSION['student'];
+$page = isset($_GET['page']) ? $_GET['page'] : 'home';
 
 // Fetch courses from database based on student level
 $courses = array();
 $level = $student['level'];
-$courseQuery = $conn->prepare("SELECT course_code, course_name, credits FROM courses WHERE level = ?");
-$courseQuery->bind_param("s", $level);
-$courseQuery->execute();
-$result = $courseQuery->get_result();
 
-while ($row = $result->fetch_assoc()) {
-    $courses[] = array(
-        'code' => $row['course_code'],
-        'name' => $row['course_name'],
-        'credits' => $row['credits']
-    );
+try {
+    $courseQuery = $conn->prepare("SELECT course_code, course_name, credits FROM courses WHERE level = ?");
+    $courseQuery->execute([$level]);
+    $courses = $courseQuery->fetchAll();
+} catch(PDOException $e) {
+    die("Error fetching courses: " . $e->getMessage());
 }
-$courseQuery->close();
 
 // Handle course registration
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_courses'])) {
@@ -33,25 +29,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_courses'])) 
         $selectedCourses = $_POST['courses'];
         $student_id = $student['id'];
         
-        // Begin transaction
-        $conn->begin_transaction();
-        
         try {
+            // Begin transaction
+            $conn->beginTransaction();
+            
             // Remove existing registrations for this student
             $deleteStmt = $conn->prepare("DELETE FROM student_courses WHERE student_id = ?");
-            $deleteStmt->bind_param("i", $student_id);
-            $deleteStmt->execute();
-            $deleteStmt->close();
+            $deleteStmt->execute([$student_id]);
             
             // Insert new course registrations
             $insertStmt = $conn->prepare("INSERT INTO student_courses (student_id, course_code) VALUES (?, ?)");
             
             foreach ($selectedCourses as $courseCode) {
-                $insertStmt->bind_param("is", $student_id, $courseCode);
-                $insertStmt->execute();
+                $insertStmt->execute([$student_id, $courseCode]);
             }
             
-            $insertStmt->close();
+            // Commit transaction
             $conn->commit();
             
             $_SESSION['registered_courses'] = $selectedCourses;
@@ -59,9 +52,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_courses'])) 
             
             echo "<script>alert('Courses registered successfully!');</script>";
             
-        } catch (Exception $e) {
-            $conn->rollback();
-            echo "<script>alert('Error registering courses: " . $conn->error . "');</script>";
+        } catch(PDOException $e) {
+            // Rollback transaction on error
+            $conn->rollBack();
+            echo "<script>alert('Error registering courses: " . $e->getMessage() . "');</script>";
         }
     }
 }
@@ -69,26 +63,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_courses'])) 
 // Fetch registered courses from database
 $registeredCourses = array();
 if (isset($student['id'])) {
-    $regQuery = $conn->prepare("
-        SELECT c.course_code 
-        FROM student_courses sc 
-        JOIN courses c ON sc.course_code = c.course_code 
-        WHERE sc.student_id = ?
-    ");
-    $regQuery->bind_param("i", $student['id']);
-    $regQuery->execute();
-    $regResult = $regQuery->get_result();
-    
-    while ($row = $regResult->fetch_assoc()) {
-        $registeredCourses[] = $row['course_code'];
+    try {
+        $regQuery = $conn->prepare("
+            SELECT c.course_code 
+            FROM student_courses sc 
+            JOIN courses c ON sc.course_code = c.course_code 
+            WHERE sc.student_id = ?
+        ");
+        $regQuery->execute([$student['id']]);
+        
+        $registeredCourses = $regQuery->fetchAll(PDO::FETCH_COLUMN, 0);
+        
+        // Store in session for quick access
+        $_SESSION['registered_courses'] = $registeredCourses;
+        
+    } catch(PDOException $e) {
+        die("Error fetching registered courses: " . $e->getMessage());
     }
-    $regQuery->close();
-    
-    // Store in session for quick access
-    $_SESSION['registered_courses'] = $registeredCourses;
 }
-
-$page = isset($_GET['page']) ? $_GET['page'] : 'home';
 ?>
 
 <!DOCTYPE html>
@@ -166,6 +158,52 @@ $page = isset($_GET['page']) ? $_GET['page'] : 'home';
             background: #45a049;
             text-decoration: none;
         }
+        
+        .courses-table-container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            overflow: hidden;
+            margin-bottom: 30px;
+        }
+        
+        .courses-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 16px;
+        }
+        
+        .courses-table thead {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+        }
+        
+        .courses-table th {
+            padding: 18px 20px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 16px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .courses-table tbody tr {
+            border-bottom: 1px solid #e0e0e0;
+            transition: background 0.3s;
+        }
+        
+        .courses-table tbody tr:hover {
+            background: #f9f9f9;
+        }
+        
+        .courses-table tbody tr:last-child {
+            border-bottom: none;
+        }
+        
+        .courses-table td {
+            padding: 16px 20px;
+            color: #333;
+        }
     </style>
 </head>
 <body>
@@ -211,12 +249,12 @@ $page = isset($_GET['page']) ? $_GET['page'] : 'home';
                         <?php if (!empty($courses)): ?>
                             <?php foreach ($courses as $course): ?>
                                 <div class="course-card">
-                                    <h3><?php echo htmlspecialchars($course['name']); ?></h3>
-                                    <p><strong>Code:</strong> <?php echo htmlspecialchars($course['code']); ?></p>
+                                    <h3><?php echo htmlspecialchars($course['course_name']); ?></h3>
+                                    <p><strong>Code:</strong> <?php echo htmlspecialchars($course['course_code']); ?></p>
                                     <p><strong>Credits:</strong> <?php echo htmlspecialchars($course['credits']); ?></p>
                                     <label class="course-checkbox">
-                                        <input type="checkbox" name="courses[]" value="<?php echo htmlspecialchars($course['code']); ?>"
-                                               <?php echo in_array($course['code'], $registeredCourses) ? 'checked' : ''; ?>>
+                                        <input type="checkbox" name="courses[]" value="<?php echo htmlspecialchars($course['course_code']); ?>"
+                                               <?php echo in_array($course['course_code'], $registeredCourses) ? 'checked' : ''; ?>>
                                         Register for this course
                                     </label>
                                 </div>
@@ -250,13 +288,12 @@ $page = isset($_GET['page']) ? $_GET['page'] : 'home';
                                 <?php 
                                 $totalCredits = 0;
                                 foreach ($registeredCourses as $courseCode): 
-                                    $courseDetailQuery = $conn->prepare("SELECT course_name, credits, level FROM courses WHERE course_code = ?");
-                                    $courseDetailQuery->bind_param("s", $courseCode);
-                                    $courseDetailQuery->execute();
-                                    $courseDetailResult = $courseDetailQuery->get_result();
-                                    
-                                    if ($courseRow = $courseDetailResult->fetch_assoc()): 
-                                        $totalCredits += $courseRow['credits'];
+                                    try {
+                                        $courseDetailQuery = $conn->prepare("SELECT course_name, credits, level FROM courses WHERE course_code = ?");
+                                        $courseDetailQuery->execute([$courseCode]);
+                                        
+                                        if ($courseRow = $courseDetailQuery->fetch()): 
+                                            $totalCredits += $courseRow['credits'];
                                 ?>
                                     <tr>
                                         <td>
@@ -278,8 +315,10 @@ $page = isset($_GET['page']) ? $_GET['page'] : 'home';
                                         </td>
                                     </tr>
                                 <?php 
-                                    endif;
-                                    $courseDetailQuery->close();
+                                        endif;
+                                    } catch(PDOException $e) {
+                                        echo "<tr><td colspan='5'>Error loading course: " . htmlspecialchars($e->getMessage()) . "</td></tr>";
+                                    }
                                 endforeach; 
                                 ?>
                             </tbody>

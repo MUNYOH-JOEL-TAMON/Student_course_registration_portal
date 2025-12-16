@@ -1,18 +1,21 @@
 <?php
-// config.php
+// config.php - PDO Version
 $host = 'localhost';
-$username = 'root'; // Change if you have different credentials
-$password = ''; // Your MariaDB password
+$username = 'root'; 
+$password = '';  // BLANK
 $database = 'student_portal';
 
-// Create connection
-$conn = new mysqli($host, $username, $password, $database);
-
-// Check connection
-if ($conn->connect_error) {
-    die("Connection failed: " . $conn->connect_error);
+try {
+    // Create PDO connection
+    $conn = new PDO("mysql:host=$host;dbname=$database;charset=utf8mb4", $username, $password);
+    
+    // Set PDO error mode to exception
+    $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    
+    // Set default fetch mode to associative array
+    $conn->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+    
+} catch(PDOException $e) {
+    die("Connection failed: " . $e->getMessage());
 }
-
-// Set charset to UTF-8
-$conn->set_charset("utf8mb4");
 ?>
