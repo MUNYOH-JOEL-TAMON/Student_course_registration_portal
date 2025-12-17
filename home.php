@@ -70,8 +70,85 @@ try {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Student Portal - <?php echo htmlspecialchars(ucfirst($page)); ?></title>
     <link rel="stylesheet" href="style.css">
+    <style>
+        .registered-section {
+            background: #fff;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+        .courses-table-container {
+            overflow-x: auto;
+            border-radius: 10px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.05);
+        }
+        .courses-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 16px;
+        }
+        .courses-table thead {
+            background-color:  #2c3e50;
+            color: white;
+        }
+        .courses-table th {
+            padding: 20px;
+            text-align: left;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .courses-table tbody tr {
+            border-bottom: 1px solid #f0f0f0;
+            transition: background-color 0.3s ease;
+        }
+        .courses-table tbody tr:last-child {
+            border-bottom: none;
+        }
+        .courses-table tbody tr:hover {
+            background-color: #f8f9fa;
+        }
+        .courses-table td {
+            padding: 20px;
+            color: #555;
+        }
+        .courses-table .badge {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: capitalize;
+        }
+        .badge-credits {
+            background-color: #e0f7fa;
+            color: #00796b;
+        }
+        .badge-level {
+            background-color: #fff3e0;
+            color: #ef6c00;
+        }
+        .total-credits-summary {
+            margin-top: 30px;
+            padding: 30px;
+            background: #2c3e50;
+            color: white;
+            border-radius: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .total-credits-summary h4 {
+            font-size: 22px;
+            font-weight: 600;
+        }
+        .total-credits-summary p {
+            font-size: 32px;
+            font-weight: 700;
+        }
+    </style>
 </head>
 <body>
+    
     <nav class="navbar">
         <div class="nav-container">
             <div class="nav-logo">
@@ -159,7 +236,6 @@ try {
                                     <th>Course Name</th>
                                     <th>Credits</th>
                                     <th>Level</th>
-                                    <th>Status</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -168,9 +244,8 @@ try {
                                     <tr>
                                         <td><?php echo htmlspecialchars($courseCode); ?></td>
                                         <td><?php echo htmlspecialchars($courseDetails[$index]['course_name']); ?></td>
-                                        <td><span class="badge badge-primary"><?php echo $courseDetails[$index]['credits']; ?> credits</span></td>
-                                        <td><span class="badge badge-secondary">Level <?php echo $courseDetails[$index]['level']; ?></span></td>
-                                        <td><span style="color: #4CAF50; font-weight: 600;">✓ Registered</span></td>
+                                        <td><span class="badge badge-credits"><?php echo $courseDetails[$index]['credits']; ?> credits</span></td>
+                                        <td><span class="badge badge-level">Level <?php echo $courseDetails[$index]['level']; ?></span></td>
                                     </tr>
                                     <?php endif; ?>
                                 <?php endforeach; ?>
@@ -178,26 +253,9 @@ try {
                         </table>
                     </div>
                     
-                    <div class="total-credits-box">
-                        <div class="total-credits-label">Total Registered Credits</div>
-                        <div class="total-credits-value"><?php echo $totalCredits; ?></div>
-                    </div>
-                    
-                    <div class="stats-container">
-                        <div class="stat-box">
-                            <div class="stat-label">Total Courses</div>
-                            <div class="stat-value"><?php echo count($registeredCourses); ?></div>
-                        </div>
-                        <div class="stat-box">
-                            <div class="stat-label">Total Credits</div>
-                            <div class="stat-value"><?php echo $totalCredits; ?></div>
-                        </div>
-                        <div class="stat-box">
-                            <div class="stat-label">Average per Course</div>
-                            <div class="stat-value">
-                                <?php echo count($registeredCourses) > 0 ? round($totalCredits / count($registeredCourses), 1) : 0; ?>
-                            </div>
-                        </div>
+                    <div class="total-credits-summary">
+                        <h4>Total Registered Credits</h4>
+                        <p><?php echo $totalCredits; ?></p>
                     </div>
                     
                 <?php else: ?>

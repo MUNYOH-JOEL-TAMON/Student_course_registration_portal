@@ -2,7 +2,7 @@
 // config.php - PDO Database Connection
 $host = 'localhost';
 $username = 'root'; 
-$password = '';  // BLANK
+$password = ''; 
 $database = 'student_portal';
 
 try {
